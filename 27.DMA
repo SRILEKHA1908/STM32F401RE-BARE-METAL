@@ -1,0 +1,79 @@
+#include "stm32f401xe.h"
+#include <stdint.h>
+
+#define GPIOAEN   (1U << 0)
+#define ADC1EN    (1U << 8)
+#define DMA2EN    (1U << 22)
+
+#define ADON      (1U << 0)
+#define SWSTART   (1U << 30)
+
+#define DMA_EN    (1U << 0)
+
+uint16_t adc_value = 0;
+
+void ADC_DMA_Init(void)
+{
+    /* Enable GPIOA clock */
+    RCC->AHB1ENR |= GPIOAEN;
+
+    /* PA1 -> Analog mode */
+    GPIOA->MODER |= (3U << 2);
+
+    /* Enable ADC1 clock */
+    RCC->APB2ENR |= ADC1EN;
+
+    /* Enable DMA2 clock */
+    RCC->AHB1ENR |= DMA2EN;
+
+    /* Disable DMA stream before config */
+    DMA2_Stream0->CR &= ~DMA_EN;
+
+    while(DMA2_Stream0->CR & DMA_EN);
+
+    /* Channel 0 selected */
+    DMA2_Stream0->CR &= ~(7U << 25);
+
+    /* Peripheral to memory */
+    DMA2_Stream0->CR &= ~(3U << 6);
+
+    /* Peripheral address = ADC data register */
+    DMA2_Stream0->PAR = (uint32_t)&ADC1->DR;
+
+    /* Memory address */
+    DMA2_Stream0->M0AR = (uint32_t)&adc_value;
+
+    /* Number of transfers */
+    DMA2_Stream0->NDTR = 1;
+
+    /* Enable DMA stream */
+    DMA2_Stream0->CR |= DMA_EN;
+
+    /* ADC channel 1 */
+    ADC1->SQR3 = 1;
+
+    /* Enable ADC DMA */
+    ADC1->CR2 |= (1U << 8);
+
+    /* Enable ADC */
+    ADC1->CR2 |= ADON;
+}
+
+void ADC_Start(void)
+{
+    ADC1->CR2 |= SWSTART;
+}
+
+int main(void)
+{
+    ADC_DMA_Init();
+
+    while(1)
+    {
+        ADC_Start();
+
+        for(int i = 0; i < 500; i++);
+
+        // adc_value contains ADC result
+    }
+}
