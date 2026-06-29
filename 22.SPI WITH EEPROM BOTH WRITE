@@ -1,0 +1,154 @@
+#include "stm32f401xe.h"
+#include "stdint.h"
+
+#define RXNE (1U<<0)
+#define TXE  (1U<<1)
+#define BUSY  (1U<<7)
+
+void GPIOA_INIT();
+void GPIOB_INIT();
+void SPI1_MASTER_INIT();
+void SPI_MO(uint8_t a);
+void SPI_MI(uint8_t b);
+
+void GPIOA_INIT()
+{
+	RCC->AHB1ENR |=(1<<0);
+
+	GPIOA->MODER |= (1U<<15);
+	GPIOA->MODER &= ~(1U<<14);
+
+	GPIOA->MODER |= (1U<<13);
+	GPIOA->MODER &= ~(1U<<12);
+
+	GPIOA->MODER |= (1U<<11);
+	GPIOA->MODER &= ~(1U<<10);
+
+	GPIOA->MODER &= ~(1U<<9);
+	GPIOA->MODER |= (1U<<8);
+
+	GPIOA->MODER &= ~(1U<<31);
+	GPIOA->MODER |= (1U<<30);
+
+	GPIOA->AFR[0] |= 0x5UL<<28U;
+
+	GPIOA->AFR[0] |= 0x5UL<<24;
+
+	GPIOA->AFR[0] |= 0x5UL<<20;
+
+}
+
+void GPIOB_INIT()
+{
+	RCC->AHB2ENR |=(1<<1);
+	GPIOB->MODER |= (1U<<11);
+	GPIOB->MODER &= ~(1U<<10);
+
+	GPIOB->MODER |= (1U<<9);
+	GPIOB->MODER &= ~(1U<<8);
+
+	GPIOB->MODER |= (1U<<7);
+	GPIOB->MODER &= ~(1U<<6);
+
+	GPIOB->AFR[0] |= 0x5UL<<28U;
+
+	GPIOB->AFR[0] |= 0x5UL<<24;
+
+	GPIOB->AFR[0] |= 0x5UL<<20;
+
+}
+
+void SPI1_MASTER_INIT()
+{
+	GPIOA_INIT();
+	GPIOB_INIT();
+
+	RCC->APB2ENR |= (1<<12);
+	RCC->APB1ENR |= (1<<15);
+
+	SPI1->CR1 |= 0X08UL;
+
+	SPI1->CR1 |= (1<<2);
+	SPI1->CR1 |= (1<<6);
+
+	SPI3->CR1 |= 0X08UL;
+
+	SPI3->CR1 |= (1<<2);
+	SPI3->CR1 |= (1<<6);
+
+}
+
+void SPI_MO(uint8_t a)
+{
+	while(!(SPI1->SR & (TXE)));
+	SPI1->DR=a;
+	while(!(SPI1->SR & (TXE)));
+	while(!(SPI1->SR & (BUSY)));
+}
+
+void SPI_MI(uint8_t b)
+{
+	while(!(SPI1->SR & (RXNE)));
+	SPI1->DR=b;
+	while(!(SPI1->SR & (RXNE)));
+	while(!(SPI1->SR & (BUSY)));
+}
+
+
+int main()
+{
+	uint32_t i;
+	SPI1_MASTER_INIT();
+
+	GPIOA->ODR |= (1<<4);//SS=1
+	for(i=0;i<1000;i++);
+
+	GPIOA->ODR &= ~(1<<4);//SS=0
+	SPI_MO(0X06UL);
+	GPIOA->ODR |= (1<<4);//SS=1
+	for(i=0;i<1000;i++);
+
+	GPIOA->ODR &= ~(1<<4);//SS=0
+	SPI_MO(0X02UL);
+	SPI_MO(0X00UL);
+	SPI_MO(0X00UL);
+	SPI_MO('G');
+
+    GPIOA->ODR |= (1<<4);//SS=1
+	for(i=0;i<1000;i++);
+	GPIOA->ODR &= ~(1<<4);//SS=0
+
+	SPI_MO(0X04UL);
+	GPIOA->ODR |= (1<<4);//SS=1
+
+	GPIOA->ODR |= (1<<15);//SS=1
+		for(i=0;i<1000;i++);
+
+		GPIOA->ODR &= ~(1<<15);//SS=0
+		SPI_MO(0X06UL);
+		GPIOA->ODR |= (1<<15);//SS=1
+		for(i=0;i<1000;i++);
+
+		GPIOA->ODR &= ~(1<<15);//SS=0
+		char a[] = "SRILEKHA";
+		SPI_MO(0X02UL);
+		SPI_MO(0X00UL);
+		SPI_MO(0X00UL);
+		for(int c= 0;a[c]!='\0';c++)
+		{
+			SPI_MO(a[c]);
+			for(i=0;i<100;i++);
+		}
+
+	    GPIOA->ODR |= (1<<15);//SS=1
+		for(i=0;i<1000;i++);
+		GPIOA->ODR &= ~(1<<15);//SS=0
+
+		SPI_MO(0X04UL);
+		GPIOA->ODR |= (1<<15);//SS=1
+
+
+	while(1);
+
+	return 0;
+}
