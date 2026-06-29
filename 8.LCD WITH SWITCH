@@ -1,0 +1,98 @@
+#include <stm32f401xe.h>
+#define GPIOAEN  (1<<0)
+#define RS (1<<10)
+#define RW (1<<9)
+#define EN (1<<8)
+#define BUTTON   (1<<11)
+
+void delay();
+
+void lcd_init();
+void send_cmd(char a);
+void send_data(char b);
+void show_data(char *s);
+
+int main()
+{
+	RCC->AHB1ENR |= (1<<0);//enable GPIOA IN RCC
+	GPIOA->MODER |= 0x5555;
+    GPIOA->MODER |= (1<<16);//en
+    GPIOA->MODER |= (1<<18);//rw
+    GPIOA->MODER |= (1<<20);//rs
+    GPIOA->MODER &=~(0X1<<22);// INPUT
+    GPIOA->MODER &=~(0X1<<23);
+
+    GPIOA->PUPDR |= (0X1<<22);//PULL UP
+
+    lcd_init();
+
+
+	while(1)
+	{
+		 if(!(GPIOA->IDR & BUTTON))   // button pressed
+		    {
+		        send_cmd(0x01);          // clear display
+		        send_cmd(0x80);          // first line
+		        show_data("embedded");
+		        delay();
+		    }
+		    else
+		    {
+		        send_cmd(0x80);          // first line
+		        show_data("srilekha");
+		        delay();
+		    }
+
+	}
+}
+
+void lcd_init()
+{
+
+	send_cmd(0x38);
+	send_cmd(0x0E);
+	send_cmd(0x01);// clear display screen
+	send_cmd(0x06);
+}
+void send_cmd(char a)
+{
+	GPIOA->ODR = a;
+	GPIOA->ODR &=~ RS;//COMMAND
+	GPIOA->ODR &=~ RW;//WRITE
+	GPIOA->ODR |= EN;
+	delay();
+	GPIOA->ODR &=~ EN;
+}
+
+void send_data(char b)
+{
+    GPIOA->ODR = b;
+    GPIOA->ODR |= RS;
+    GPIOA->ODR &=~ RW;
+    GPIOA->ODR |= EN;
+    delay();
+    GPIOA->ODR &=~ EN;
+}
+
+
+
+void show_data(char s[])
+{
+	int k;
+	for(k =0;s[k]!='\0';k++)
+	{
+		 if(!(GPIOA->IDR & BUTTON))   // button pressed
+		 {
+		      send_cmd(0x01);          // clear display
+		      return;                  // stop printing
+	     }send_data(s[k]);
+	}
+}
+
+void delay()
+{
+	int i,j;
+for(i=0;i<10000;i++)
+for(j=0;j<100;j++);
+}
+
