@@ -1,0 +1,36 @@
+#include<stm32f401xe.h>
+
+
+void delay();
+
+int main()
+{
+	RCC->AHB1ENR |= (1<<0);//enable GPIOA IN RCC
+	GPIOA->MODER |= (1<<0);
+    GPIOA->MODER |= (1<<2);
+    GPIOA->MODER |= (1<<4);
+    GPIOA->MODER |= (1<<6);
+    GPIOA->MODER |= (1<<8);
+    GPIOA->MODER |= (1<<10);
+    GPIOA->MODER |= (1<<12);
+    GPIOA->MODER |= (1<<14); //0X5555
+
+	while(1)
+	{
+		int i;
+		for(i=0;i<8;i++)
+		{
+		   GPIOA->ODR = (1<<i);
+		   delay();//for(i=0;i<10000;i++);
+		   GPIOA->ODR = 0X00;
+		   delay();
+	    }
+    }
+}
+
+void delay()
+{
+	int i,j;
+for(i=0;i<10000;i++)
+for(j=0;j<100;j++);
+}
