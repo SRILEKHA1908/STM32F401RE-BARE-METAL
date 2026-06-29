@@ -1,0 +1,85 @@
+#include <stm32f401xe.h>
+#define GPIOAEN  (1<<0)
+#define RS (1<<4)
+#define RW (1<<5)
+#define EN (1<<6)
+
+void delay();
+
+void lcd_init();
+void send_cmd(char a);
+void send_data(char b);
+void show_data(char *s);
+
+int main()
+{
+	RCC->AHB1ENR |= (1<<0);//enable GPIOA IN RCC
+	GPIOA->MODER |= 0X5555;
+    GPIOA->MODER |= (1<<12);//en
+    GPIOA->MODER |= (1<<10);//rw
+    GPIOA->MODER |= (1<<8);//rs
+
+    lcd_init();
+
+
+	while(1)
+	{
+		send_cmd(0x80);          // 1st line
+		show_data("srilekha");
+
+		send_cmd(0xC0);          // 2nd line
+	    show_data("embedded");
+
+		delay();
+
+		send_cmd(0x01);          // Clear display
+		delay();
+	}
+}
+
+void lcd_init()
+{
+
+	send_cmd(0x38);
+	send_cmd(0x0E);
+	send_cmd(0x01);// clear display screen
+	send_cmd(0x06);
+}
+void send_cmd(char a)
+{
+	GPIOA->ODR = a;
+	GPIOA->ODR &=~ RS;//COMMAND
+	GPIOA->ODR &=~ RW;//WRITE
+	GPIOA->ODR |= EN;
+	delay();
+	GPIOA->ODR &=~ EN;
+}
+
+void send_data(char b)
+{
+    GPIOA->ODR = b;
+    GPIOA->ODR |= RS;
+    GPIOA->ODR &=~ RW;
+    GPIOA->ODR |= EN;
+    delay();
+    GPIOA->ODR &=~ EN;
+}
+
+
+
+void show_data(char s[])
+{
+	int k;
+	for(k =0;s[k]!='\0';k++)
+	{
+		send_data(s[k]);
+	}
+}
+
+void delay()
+{
+	int i,j;
+for(i=0;i<10000;i++)
+for(j=0;j<100;j++);
+}
+
