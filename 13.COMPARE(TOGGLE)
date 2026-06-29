@@ -1,0 +1,44 @@
+#include"stm32f401xe.h"
+
+#define GPIOBEN (0X1UL<<1U)
+
+
+#define TIM4EN (0X1UL<<2U)
+#define CC4E (0X1UL<<12U)
+#define CEN (0X1UL<<0U)
+
+
+void TIMER2_OUTPUT_COMPARE();
+
+int main()
+{
+	TIMER2_OUTPUT_COMPARE();
+	while(1);
+}
+
+void TIMER2_OUTPUT_COMPARE()
+{
+	RCC->AHB1ENR |= GPIOBEN;
+
+	GPIOB->MODER |= (0x2<<18);
+
+	GPIOB->AFR[1] |=  (0x2<<4);
+
+
+	RCC->APB1ENR |= TIM4EN;
+
+	TIM4->PSC = 16000-1;
+
+	TIM4->ARR = 1000;
+
+	TIM4->CNT = 0 ;
+
+    TIM4->CR1 = CEN;
+
+	TIM4->CCMR2 |= (0X3UL << 12U);
+
+    TIM4->CCER |= CC4E;
+
+	TIM4->CCR4 = 500;
+
+}
