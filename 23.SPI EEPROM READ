@@ -1,0 +1,227 @@
+#include "stm32f401xe.h"
+#include "stdint.h"
+
+#define SPI2EN (1U<<12)
+
+#define RXNE (1U<<0)
+#define TXE  (1U<<1)
+#define BUSY  (1U<<7)
+
+#define MSTR (1U<<2)
+#define DFF (1U<<11)
+#define SPE (1U<<6)
+
+
+#define RS (1<<10)
+#define RW (1<<9)
+#define EN (1<<8)
+
+void GPIOA_INIT();
+void SPI1_MASTER_INIT();
+void SPI_MO(uint8_t a);
+uint8_t SPI_MI();
+void SPI_BYTE_WRITE();
+char SPI_BYTEREAD();
+
+void delay();
+
+void lcd_init();
+void send_cmd(char a);
+void send_data(char b);
+void show_data(char *s);
+
+
+void GPIOA_INIT()
+{
+	RCC->AHB1ENR |=(1<<0);
+
+	GPIOA->MODER |= (1U<<15);
+	GPIOA->MODER &= ~(1U<<14);
+
+	GPIOA->MODER |= (1U<<13);
+	GPIOA->MODER &= ~(1U<<12);
+
+	GPIOA->MODER |= (1U<<11);
+	GPIOA->MODER &= ~(1U<<10);
+
+	GPIOA->MODER &= ~(1U<<9);
+	GPIOA->MODER |= (1U<<8);
+
+	GPIOA->AFR[0] |= 0x5UL<<28U;
+
+	GPIOA->AFR[0] |= 0x5UL<<24;
+
+	GPIOA->AFR[0] |= 0x5UL<<20;
+
+}
+
+void SPI1_MASTER_INIT()
+{
+	GPIOA_INIT();
+
+
+
+	 RCC->APB2ENR |= SPI2EN;
+
+
+	    SPI1->CR1 |= 0x08UL;
+
+
+	    SPI1->CR1 |= MSTR;
+	    SPI1->CR1 |= SPE;
+
+}
+
+void SPI_MO(uint8_t data)
+{
+    SPI1->DR = data;
+    while (!(SPI1->SR & TXE)); // Wait until the transmit buffer is empty
+    while (!(SPI1->SR & BUSY));
+}
+
+
+uint8_t SPI_MI()
+{
+	while(!(SPI1->SR & TXE));
+	SPI1->DR = 0xFF;   // Dummy write
+
+	while(!(SPI1->SR & RXNE));
+	return SPI1->DR;
+}
+
+void SPI_BYTE_WRITE()
+{
+	    uint32_t i;
+	    GPIOA->ODR |= (1<<4);//SS=1
+		for(i=0;i<1000;i++);
+
+		GPIOA->ODR &= ~(1<<4);//SS=0
+		SPI_MO(0X06UL);
+		GPIOA->ODR |= (1<<4);//SS=1
+		for(i=0;i<1000;i++);
+
+		GPIOA->ODR &= ~(1<<4);//SS=0
+		SPI_MO(0X02UL);
+		SPI_MO(0X00UL);
+		SPI_MO(0X00UL);
+		SPI_MO('S');
+		for(int i=0;i<50000;i++);
+
+	    GPIOA->ODR |= (1<<4);//SS=1
+		for(i=0;i<1000;i++);
+		GPIOA->ODR &= ~(1<<4);//SS=0
+
+}
+
+char SPI_BYTEREAD(){
+
+        GPIOA->ODR |= (1<<4);
+
+	    for (volatile int i = 0; i < 1000; i++);
+
+	    GPIOA->ODR &= ~(1<<4);
+	    SPI_MO(0x03UL);
+	    SPI_MO(0x00UL);
+	    SPI_MO(0x00UL);
+	    SPI_MO(0x00);
+	    char REC=SPI1->DR;
+	    GPIOA->ODR |= (1<<4);
+	    return REC;
+}
+
+
+int main()
+{
+	uint32_t i;
+	SPI1_MASTER_INIT();
+    SPI_BYTE_WRITE();
+
+	/*SPI_MO(0X04UL);
+	GPIOA->ODR |= (1<<4);//SS=1*/
+
+    for(int i=0;i<200000;i++);
+	RCC->AHB1ENR |= (1<<1);//enable GPIOB IN RCC
+	GPIOB->MODER &= ~(1<<8);
+	GPIOB->MODER &= ~(1<<9);
+	GPIOB->MODER &= ~(1<<7);
+    GPIOB->MODER &= ~(1<<6);
+
+	GPIOB->MODER |= (1<<0);
+	GPIOB->MODER |= (1<<2);
+	GPIOB->MODER |= (1<<4);
+
+	GPIOB->MODER |= (1<<6);
+
+
+	GPIOB->MODER |= (1<<8);
+	GPIOB->MODER |= (1<<10);
+	GPIOB->MODER |= (1<<12);
+	GPIOB->MODER |= (1<<14);
+
+	GPIOB->MODER |= (1<<16);//en
+	GPIOB->MODER |= (1<<18);//rw
+	GPIOB->MODER |= (1<<20);//rs*/
+
+	for(int i=0;i<50000;i++);
+	lcd_init();
+
+	while(1)
+	{
+
+	   char received = SPI_BYTEREAD();
+	   send_cmd(0x80);
+	   show_data("RECEIVED DATA");
+
+	   send_cmd(0xC0);
+	   send_data(received);
+    }
+
+
+	return 0;
+}
+
+void lcd_init()
+{
+
+	send_cmd(0x38);
+	send_cmd(0x0E);
+	send_cmd(0x01);// clear display screen
+	send_cmd(0x06);
+}
+void send_cmd(char a)
+{
+	GPIOB->ODR = (GPIOB->ODR & 0xFF00) | a;
+	GPIOB->ODR &=~ RS;//COMMAND
+	GPIOB->ODR &=~ RW;//WRITE
+	GPIOB->ODR |= EN;
+	for(int i=0;i<1000;i++);
+	GPIOB->ODR &=~ EN;
+}
+
+void send_data(char b)
+{
+	GPIOB->ODR = (GPIOB->ODR & 0xFF00) | b;
+    GPIOB->ODR |= RS;
+    GPIOB->ODR &=~ RW;
+    GPIOB->ODR |= EN;
+    for(int i=0;i<1000;i++);
+    GPIOB->ODR &=~ EN;
+}
+
+
+
+void show_data(char s[])
+{
+	int k;
+	for(k =0;s[k]!='\0';k++)
+	{
+		send_data(s[k]);
+	}
+}
+
+void delay()
+{
+	int i,j;
+for(i=0;i<10000;i++)
+for(j=0;j<100;j++);
+}
